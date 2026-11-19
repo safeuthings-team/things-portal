@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>띵스팀 자료실</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>띵스팀 자료실</h1>
+    <p>현장별 자료 검색 및 다운로드</p>
+  </header>
+
+  <main>
+    <form id="unlock" class="unlock" hidden>
+      <label for="pw">자료실 비밀번호</label>
+      <div class="unlock-row">
+        <input id="pw" type="password" autocomplete="current-password" required>
+        <button type="submit" id="unlock-btn">열기</button>
+      </div>
+      <p id="unlock-msg" class="unlock-msg" role="alert"></p>
+    </form>
+
+    <div id="app" hidden>
+      <div class="filters">
+        <input id="q" type="search" placeholder="자료명·설명·태그 검색" aria-label="검색" autocomplete="off">
+        <select id="site" aria-label="현장">
+          <option value="">전체 현장</option>
+        </select>
+        <select id="category" aria-label="자료 종류">
+          <option value="">전체 자료</option>
+          <option value="app">앱</option>
+          <option value="guide">가이드</option>
+          <option value="manual">매뉴얼</option>
+          <option value="other">기타</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="status" class="status" role="status"></div>
+    <ul id="list" class="cards"></ul>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "repo": "jhlee-upleat/things-poc",
+  "ref": "live",
+  "token": {
+    "v": 1,
+    "kdf": "PBKDF2-SHA256",
+    "iter": 600000,
+    "salt": "Pjcncvn2bAZ+2Dk3eRFBqQ==",
+    "iv": "b0gDCQ2kNxk0ZKv2Lo5U2w==",
+    "ct": "/BInKftVmwHLZGS2MsXlBsYkQUXhm0jDwwgbisFIoIU=",
+    "mac": "GtPw5PEVq4WciHEzgDCJJ1zScylrFPoUCTBNt1muIVI="
+  }
+}
