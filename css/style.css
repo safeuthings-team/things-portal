@@ -74,6 +74,17 @@ main { max-width: 760px; margin: 0 auto; padding: 8px 16px 32px; }
 .card-note { grid-column: 1 / -1; margin: 4px 0 0; font-size: 0.9rem; }
 .card-note:empty { display: none; }
 .card-note.error { color: var(--danger); }
+.card .change { margin: 4px 0 0; font-size: 0.9rem; }
+.history-toggle { grid-column: 1 / -1; justify-self: start; min-height: 36px; padding: 0 4px; margin-top: 4px; color: var(--accent); background: transparent; border: 0; font-weight: 600; }
+.history-toggle::after { content: " ▾"; }
+.history-toggle[aria-expanded="true"]::after { content: " ▴"; }
+.history { grid-column: 1 / -1; list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+.history li { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.history li:last-child { border-bottom: 0; }
+.history-info { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.history-version { font-weight: 600; }
+.history-date, .history-note { color: var(--muted); font-size: 0.9rem; }
+.history-download { min-height: 36px; min-width: 72px; padding: 0 14px; color: var(--text); background: var(--surface); border: 1px solid var(--border); }
 .save-link { color: var(--accent); font-weight: 600; word-break: break-all; }
 
 button {
@@ -102,3 +113,30 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .unlock-msg { margin: 0; min-height: 1.5em; color: var(--danger); font-size: 0.9rem; }
 .status:empty { min-height: 0; }
 [hidden] { display: none !important; }
+
+/* 외부 공유 (자료실 카드) */
+.share { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+.share-label { flex: 1 1 100%; color: var(--muted); font-size: 0.9rem; }
+.share-btn { min-height: 36px; padding: 0 14px; color: var(--accent); background: transparent; border: 1px solid var(--accent); }
+
+.qr-dialog { width: min(360px, calc(100vw - 32px)); padding: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; text-align: center; }
+.qr-dialog::backdrop { background: rgb(0 0 0 / 0.5); }
+.qr-dialog h2 { margin: 0 0 12px; font-size: 1.05rem; }
+.qr-dialog img { display: block; width: 100%; max-width: 264px; height: auto; margin: 0 auto; image-rendering: pixelated; background: #fff; border-radius: 8px; }
+.qr-url { margin: 12px 0; color: var(--muted); font-size: 0.85rem; word-break: break-all; }
+.qr-actions { display: flex; gap: 8px; justify-content: center; }
+.qr-save { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; color: var(--accent); font-weight: 600; text-decoration: none; }
+.qr-actions button { color: var(--accent-text); background: var(--accent); border: 0; }
+
+/* 외부 공유 안내 페이지 (apps/<이름>/) */
+.app-page { display: grid; gap: 16px; }
+.app-page p { margin: 0; }
+.app-download { display: flex; align-items: center; justify-content: center; min-height: 56px; border-radius: 10px; font-weight: 700; font-size: 1.1rem; text-decoration: none; }
+.inapp { padding: 12px 14px; background: var(--surface); border: 1px solid var(--danger); border-radius: 10px; }
+.app-guide { padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+.app-guide h2 { margin: 0 0 8px; font-size: 1rem; }
+.app-guide ol { margin: 0; padding-left: 1.3em; }
+.app-guide li + li { margin-top: 6px; }
+.app-qr { color: var(--muted); font-size: 0.9rem; text-align: center; }
+.app-qr #qr svg { width: 200px; height: 200px; margin-top: 8px; background: #fff; border-radius: 8px; }
+@media (pointer: coarse) { .app-qr { display: none; } }

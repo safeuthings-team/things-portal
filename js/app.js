@@ -1,6 +1,6 @@
 "use strict";
 
-// config.json (ts-admin [포털 배포]가 생성): { repo, ref, token: 자료실 비밀번호로 암호화한 읽기 전용 토큰 }
+// config.json (ts-admin [자료실 설정]가 생성): { repo, ref, token: 자료실 비밀번호로 암호화한 읽기 전용 토큰 }
 const SESSION_KEY = "things-share-token";
 const $ = (id) => document.getElementById(id);
 let site = null; // config.json
@@ -104,14 +104,82 @@ function card(r) {
   });
   body.append(meta);
 
+  if (r.note) body.append(el("p", "change", `변경 내용: ${r.note}`));
+
   const btn = el("button", "download", "다운로드");
   const note = el("p", "card-note");
   btn.onclick = () => download(r, btn, note);
   li.append(body, btn, note);
+  if (r.publicSlug) li.append(shareRow(r));
+
+  // 이전 버전: 펼쳐서 받기 (관리자가 보관한 버전만)
+  const history = r.history || [];
+  if (history.length) {
+    const toggle = el("button", "history-toggle", `이전 버전 ${history.length}개`);
+    toggle.setAttribute("aria-expanded", "false");
+    const list = el("ul", "history");
+    list.hidden = true;
+    for (const h of history) {
+      const item = el("li");
+      const info = el("div", "history-info");
+      info.append(el("span", "history-version", `v${h.version}`), el("span", "history-date", h.updatedAt || ""));
+      if (h.note) info.append(el("span", "history-note", h.note));
+      const hb = el("button", "history-download", "받기");
+      const hn = el("p", "card-note");
+      hb.onclick = () => download(h, hb, hn, "받기");
+      item.append(info, hb, hn);
+      list.append(item);
+    }
+    toggle.onclick = () => {
+      list.hidden = !list.hidden;
+      toggle.setAttribute("aria-expanded", String(!list.hidden));
+    };
+    li.append(toggle, list);
+  }
   return li;
 }
 
-async function download(r, btn, note) {
+// 외부 공유 자료: 비밀번호 없이 받는 안내 페이지(apps/<이름>/) 주소를 보내거나 QR 로 보여 준다
+function shareRow(r) {
+  const url = new URL(`apps/${r.publicSlug}/`, location.href).href;
+  const row = el("div", "share");
+  row.append(el("span", "share-label", "외부 공유 링크 · 비밀번호 없이 받음"));
+  if (navigator.share) {
+    const b = el("button", "share-btn", "공유");
+    b.onclick = () => navigator.share({ title: r.title, text: `${r.title} 설치 파일`, url }).catch(() => {});
+    row.append(b);
+  }
+  const copy = el("button", "share-btn", "링크 복사");
+  copy.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      copy.textContent = "복사됨";
+      setTimeout(() => (copy.textContent = "링크 복사"), 2000);
+    } catch {
+      prompt("아래 링크를 복사하세요", url);
+    }
+  };
+  const qr = el("button", "share-btn", "QR 보기");
+  qr.onclick = () => showQr(r.title, url);
+  row.append(copy, qr);
+  return row;
+}
+
+function showQr(title, url) {
+  const qr = qrcode(0, "M");
+  qr.addData(url);
+  qr.make();
+  const src = qr.createDataURL(8, 4);
+  $("qr-title").textContent = title;
+  $("qr-img").src = src;
+  $("qr-img").alt = `${title} 외부 공유 링크 QR 코드`;
+  $("qr-url").textContent = url;
+  $("qr-save").href = src;
+  $("qr-save").download = `${title} QR.gif`;
+  $("qr-dialog").showModal();
+}
+
+async function download(r, btn, note, label = "다운로드") {
   btn.disabled = true;
   note.replaceChildren();
   note.classList.remove("error");
@@ -132,7 +200,7 @@ async function download(r, btn, note) {
     }
     // 받는 데 시간이 걸리면 브라우저가 자동 다운로드로 보고 막을 수 있다
     // (Chrome '여러 파일 다운로드' 차단 등). 그래서 직접 눌러 저장할 링크도 함께 보여 준다.
-    const name = r.path.split("/").pop();
+    const name = r.fileName || r.path.split("/").pop();
     const a = el("a", "save-link", `다운로드가 시작되지 않았다면 여기를 눌러 저장 (${name})`);
     a.href = URL.createObjectURL(new Blob(chunks));
     a.download = name;
@@ -144,7 +212,7 @@ async function download(r, btn, note) {
     note.classList.add("error");
   } finally {
     btn.disabled = false;
-    btn.textContent = "다운로드";
+    btn.textContent = label;
   }
 }
 
@@ -206,4 +274,5 @@ async function start() {
 
 ["q", "site", "category"].forEach((id) => $(id).addEventListener("input", render));
 $("unlock").addEventListener("submit", unlock);
+$("qr-close").addEventListener("click", () => $("qr-dialog").close());
 start();
