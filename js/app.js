@@ -2,9 +2,11 @@
 
 // config.json (ts-admin [자료실 설정]가 생성): { repo, ref, token: 자료실 비밀번호로 암호화한 읽기 전용 토큰 }
 const SESSION_KEY = "things-share-token";
+const SESSION_MS = 2 * 60 * 60 * 1000; // 비밀번호를 넣은 뒤 2시간이 지나면 다시 묻는다 (탭을 닫아도 다시 묻는다)
 const $ = (id) => document.getElementById(id);
 let site = null; // config.json
 let token = null; // 비밀번호로 푼 토큰
+let unlockedAt = 0; // 비밀번호를 넣은 시각 (ms)
 let manifest = null;
 
 const fromB64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
@@ -33,7 +35,19 @@ function forgetToken() {
   try { sessionStorage.removeItem(SESSION_KEY); } catch {}
 }
 
+const sessionExpired = () => token && Date.now() - unlockedAt >= SESSION_MS;
+
+// 2시간이 지났으면 비밀번호 화면으로. 받는 중인 파일은 끊지 않도록 새 요청 때와 화면으로 돌아올 때만 확인한다
+function lockIfExpired() {
+  if (!sessionExpired()) return false;
+  forgetToken();
+  location.reload();
+  return true;
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) lockIfExpired(); });
+
 async function gh(path) {
+  if (lockIfExpired()) throw new Error("접속한 지 2시간이 지나 비밀번호를 다시 확인합니다.");
   const url = `https://api.github.com/repos/${site.repo}/contents/` +
     path.split("/").map(encodeURIComponent).join("/") + `?ref=${site.ref}`;
   let res;
@@ -252,7 +266,8 @@ async function unlock(e) {
     return;
   }
   $("unlock-msg").textContent = "";
-  try { sessionStorage.setItem(SESSION_KEY, token); } catch {}
+  unlockedAt = Date.now();
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token, at: unlockedAt })); } catch {}
   openApp();
 }
 
@@ -266,8 +281,12 @@ async function start() {
     return;
   }
   showStatus("");
-  try { token = sessionStorage.getItem(SESSION_KEY); } catch {}
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(SESSION_KEY));
+    if (saved && saved.token && Date.now() - saved.at < SESSION_MS) { token = saved.token; unlockedAt = saved.at; }
+  } catch {}
   if (token) return openApp();
+  forgetToken(); // 예전 형식이나 만료된 값 지우기
   $("unlock").hidden = false;
   $("pw").focus();
 }
