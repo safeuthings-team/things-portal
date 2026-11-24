@@ -92,7 +92,7 @@ button:disabled { cursor: progress; opacity: 0.8; }
 .i-alert { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v6M12 16.5v.5'/%3E%3C/svg%3E"); }
 
 /* ── 비밀번호 ── */
-.unlock { display: grid; gap: 8px; max-width: 420px; padding: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.unlock { display: grid; gap: 8px; max-width: 420px; margin: clamp(16px, 8vh, 72px) auto 0; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
 .unlock label { font-weight: 700; }
 .unlock .hint { margin: 0; color: var(--muted); font-size: 0.9rem; }
 .unlock-row { display: flex; gap: 8px; margin-top: 4px; }
@@ -106,6 +106,8 @@ input, select {
   accent-color: var(--brand);
 }
 input::placeholder { color: var(--muted); opacity: 1; }
+/* 브라우저 자동 완성 바탕(파랑·노랑)을 화면 색으로 */
+input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus { -webkit-text-fill-color: var(--text); -webkit-box-shadow: 0 0 0 100px var(--surface) inset; caret-color: var(--brand); }
 input:hover, select:hover { border-color: var(--muted); }
 
 /* ── 필터·상태 ── */
