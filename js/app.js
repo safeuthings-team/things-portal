@@ -3,6 +3,10 @@
 // config.json (ts-admin [자료실 설정]가 생성): { repo, ref, token: 자료실 비밀번호로 암호화한 읽기 전용 토큰 }
 const SESSION_KEY = "things-share-token";
 const SESSION_MS = 2 * 60 * 60 * 1000; // 비밀번호를 넣은 뒤 2시간이 지나면 다시 묻는다 (탭을 닫아도 다시 묻는다)
+const LOCK_KEY = "things-share-lock"; // 2시간이 지나 다시 묻는 이유를 새로고침 뒤에 보여 주려고 남긴다
+const FILTER_KEY = "things-share-filters"; // 이 탭의 검색·필터 (다시 열어도 그대로)
+const SITE_KEY = "things-share-site"; // 마지막으로 고른 현장 (다음 방문에도)
+const KINDS = { app: "앱", guide: "가이드", manual: "매뉴얼", other: "기타" };
 const $ = (id) => document.getElementById(id);
 let site = null; // config.json
 let token = null; // 비밀번호로 푼 토큰
@@ -41,6 +45,7 @@ const sessionExpired = () => token && Date.now() - unlockedAt >= SESSION_MS;
 function lockIfExpired() {
   if (!sessionExpired()) return false;
   forgetToken();
+  try { sessionStorage.setItem(LOCK_KEY, "expired"); } catch {}
   location.reload();
   return true;
 }
@@ -80,14 +85,42 @@ function el(tag, className, text) {
   return e;
 }
 
-function showStatus(message, retry) {
+function showStatus(message, action, label = "다시 시도") {
   const box = $("status");
   box.replaceChildren(el("span", "", message));
-  if (retry) {
-    const btn = el("button", "retry", "다시 시도");
-    btn.onclick = retry;
+  if (action) {
+    const btn = el("button", "retry", label);
+    btn.onclick = action;
     box.append(btn);
   }
+}
+
+function icon(name) {
+  const i = el("span", `icon i-${name}`);
+  i.setAttribute("aria-hidden", "true");
+  return i;
+}
+
+function saveFilters() {
+  const f = { q: $("q").value, site: $("site").value, category: $("category").value };
+  try { sessionStorage.setItem(FILTER_KEY, JSON.stringify(f)); localStorage.setItem(SITE_KEY, f.site); } catch {}
+}
+
+function restoreFilters() {
+  let f = {};
+  try { f = JSON.parse(sessionStorage.getItem(FILTER_KEY)) || { site: localStorage.getItem(SITE_KEY) || "" }; } catch {}
+  const pick = (id, v) => { if (v && [...$(id).options].some((o) => o.value === v)) $(id).value = v; };
+  pick("site", f.site);
+  pick("category", f.category);
+  if (f.q) $("q").value = f.q;
+}
+
+function resetFilters() {
+  $("q").value = "";
+  $("site").value = "";
+  $("category").value = "";
+  saveFilters();
+  render();
 }
 
 function siteLabel(r) {
@@ -103,13 +136,24 @@ function render() {
   const items = manifest.resources.filter((r) => matches(r, site, category, q));
 
   $("list").replaceChildren(...items.map(card));
-  showStatus(items.length ? `자료 ${items.length}건` : "조건에 맞는 자료가 없습니다.");
+  if (items.length) showStatus(`자료 ${items.length}건`);
+  else showStatus("조건에 맞는 자료가 없습니다.", site || category || q ? resetFilters : null, "필터 초기화");
+}
+
+// 목록은 바로 바꾸고, 저장은 입력이 멈춘 뒤에
+let typing = 0;
+function onFilter() {
+  render();
+  clearTimeout(typing);
+  typing = setTimeout(saveFilters, 300);
 }
 
 function card(r) {
   const li = el("li", "card");
   const body = el("div", "card-body");
-  body.append(el("h2", "", r.title));
+  const head = el("div", "card-title");
+  head.append(el("span", "kind", KINDS[r.category] || "기타"), el("h2", "", r.title));
+  body.append(head);
   if (r.description) body.append(el("p", "desc", r.description));
   const meta = el("p", "meta");
   [r.fileType, `v${r.version}`, siteLabel(r), r.updatedAt].filter(Boolean).forEach((text, i) => {
@@ -120,8 +164,10 @@ function card(r) {
 
   if (r.note) body.append(el("p", "change", `변경 내용: ${r.note}`));
 
-  const btn = el("button", "download", "다운로드");
+  const btn = el("button", "download");
+  btn.append(icon("down"), el("span", "", "다운로드"));
   const note = el("p", "card-note");
+  note.setAttribute("aria-live", "polite");
   btn.onclick = () => download(r, btn, note);
   li.append(body, btn, note);
   if (r.publicSlug) li.append(shareRow(r));
@@ -129,7 +175,8 @@ function card(r) {
   // 이전 버전: 펼쳐서 받기 (관리자가 보관한 버전만)
   const history = r.history || [];
   if (history.length) {
-    const toggle = el("button", "history-toggle", `이전 버전 ${history.length}개`);
+    const toggle = el("button", "history-toggle");
+    toggle.append(el("span", "", `이전 버전 ${history.length}개`), icon("chev"));
     toggle.setAttribute("aria-expanded", "false");
     const list = el("ul", "history");
     list.hidden = true;
@@ -138,9 +185,11 @@ function card(r) {
       const info = el("div", "history-info");
       info.append(el("span", "history-version", `v${h.version}`), el("span", "history-date", h.updatedAt || ""));
       if (h.note) info.append(el("span", "history-note", h.note));
-      const hb = el("button", "history-download", "받기");
+      const hb = el("button", "history-download", "다운로드");
+      hb.setAttribute("aria-label", `v${h.version} 다운로드`);
       const hn = el("p", "card-note");
-      hb.onclick = () => download(h, hb, hn, "받기");
+      hn.setAttribute("aria-live", "polite");
+      hb.onclick = () => download(h, hb, hn);
       item.append(info, hb, hn);
       list.append(item);
     }
@@ -153,11 +202,13 @@ function card(r) {
   return li;
 }
 
-// 외부 공유 자료: 비밀번호 없이 받는 안내 페이지(apps/<이름>/) 주소를 보내거나 QR 로 보여 준다
+// 공개 링크 자료: 비밀번호 없이 받는 안내 페이지(apps/<이름>/) 주소를 보내거나 QR 로 보여 준다
 function shareRow(r) {
   const url = new URL(`apps/${r.publicSlug}/`, location.href).href;
   const row = el("div", "share");
-  row.append(el("span", "share-label", "외부 공유 링크 · 비밀번호 없이 받음"));
+  const label = el("span", "share-label");
+  label.append(el("b", "", "공개 링크"), " · 비밀번호 없이 누구나 받을 수 있습니다");
+  row.append(label);
   if (navigator.share) {
     const b = el("button", "share-btn", "공유");
     b.onclick = () => navigator.share({ title: r.title, text: `${r.title} 설치 파일`, url }).catch(() => {});
@@ -186,14 +237,15 @@ function showQr(title, url) {
   const src = qr.createDataURL(8, 4);
   $("qr-title").textContent = title;
   $("qr-img").src = src;
-  $("qr-img").alt = `${title} 외부 공유 링크 QR 코드`;
+  $("qr-img").alt = `${title} 공개 링크 QR 코드`;
   $("qr-url").textContent = url;
   $("qr-save").href = src;
   $("qr-save").download = `${title} QR.gif`;
   $("qr-dialog").showModal();
 }
 
-async function download(r, btn, note, label = "다운로드") {
+async function download(r, btn, note) {
+  const original = [...btn.childNodes];
   btn.disabled = true;
   note.replaceChildren();
   note.classList.remove("error");
@@ -215,18 +267,18 @@ async function download(r, btn, note, label = "다운로드") {
     // 받는 데 시간이 걸리면 브라우저가 자동 다운로드로 보고 막을 수 있다
     // (Chrome '여러 파일 다운로드' 차단 등). 그래서 직접 눌러 저장할 링크도 함께 보여 준다.
     const name = r.fileName || r.path.split("/").pop();
-    const a = el("a", "save-link", `다운로드가 시작되지 않았다면 여기를 눌러 저장 (${name})`);
+    const a = el("a", "save-link", `저장되지 않았다면 여기를 눌러 다시 저장 (${name})`);
     a.href = URL.createObjectURL(new Blob(chunks));
     a.download = name;
     note.replaceChildren(a);
     a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); note.replaceChildren(); }, 10 * 60000);
   } catch (e) {
-    note.textContent = e.message;
+    note.replaceChildren(icon("alert"), el("span", "", e.message));
     note.classList.add("error");
   } finally {
     btn.disabled = false;
-    btn.textContent = label;
+    btn.replaceChildren(...original);
   }
 }
 
@@ -239,7 +291,8 @@ async function load() {
     return;
   }
   const siteSelect = $("site");
-  siteSelect.replaceChildren(new Option("전체 현장", ""), ...manifest.sites.map((s) => new Option(s.name, s.id)));
+  siteSelect.replaceChildren(new Option("모든 현장", ""), ...manifest.sites.map((s) => new Option(s.name, s.id)));
+  restoreFilters();
   render();
 }
 
@@ -252,8 +305,10 @@ function openApp() {
 async function unlock(e) {
   e.preventDefault();
   const btn = $("unlock-btn");
+  const msg = $("unlock-msg");
   btn.disabled = true;
-  $("unlock-msg").textContent = "확인 중…";
+  msg.className = "unlock-msg";
+  msg.textContent = "확인 중…";
   try {
     token = await decryptToken(site.token, $("pw").value);
   } catch {
@@ -261,11 +316,12 @@ async function unlock(e) {
   }
   btn.disabled = false;
   if (!token) {
-    $("unlock-msg").textContent = "비밀번호가 틀렸습니다.";
+    msg.className = "unlock-msg error";
+    msg.textContent = "비밀번호가 틀렸습니다. 다시 입력하세요.";
     $("pw").select();
     return;
   }
-  $("unlock-msg").textContent = "";
+  msg.textContent = "";
   unlockedAt = Date.now();
   try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token, at: unlockedAt })); } catch {}
   openApp();
@@ -287,11 +343,16 @@ async function start() {
   } catch {}
   if (token) return openApp();
   forgetToken(); // 예전 형식이나 만료된 값 지우기
+  try {
+    if (sessionStorage.getItem(LOCK_KEY)) $("unlock-msg").textContent = "접속한 지 2시간이 지나 비밀번호를 다시 확인합니다. 보던 검색 조건은 그대로 남아 있습니다.";
+    sessionStorage.removeItem(LOCK_KEY);
+  } catch {}
   $("unlock").hidden = false;
-  $("pw").focus();
+  if (matchMedia("(pointer: fine)").matches) $("pw").focus(); // 휴대폰에서는 키보드가 바로 올라오지 않게
 }
 
-["q", "site", "category"].forEach((id) => $(id).addEventListener("input", render));
+["q", "site", "category"].forEach((id) => $(id).addEventListener("input", onFilter));
 $("unlock").addEventListener("submit", unlock);
 $("qr-close").addEventListener("click", () => $("qr-dialog").close());
+$("qr-dialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); }); // 바깥 누르면 닫기
 start();
