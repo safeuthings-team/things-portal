@@ -21,7 +21,7 @@
     </div>
   </header>
 
-  <main>
+  <main class="portal">
     <form id="unlock" class="unlock" hidden>
       <label for="pw">자료실 비밀번호</label>
       <p class="hint" id="pw-hint">비밀번호는 팀 관리자에게 받으세요.</p>
@@ -41,14 +41,16 @@
         <select id="category" aria-label="자료 종류">
           <option value="">모든 종류</option>
           <option value="app">앱</option>
-          <option value="guide">가이드</option>
           <option value="manual">매뉴얼</option>
+          <option value="guide">퀵 가이드</option>
           <option value="other">기타</option>
         </select>
       </div>
+      <nav id="facets" class="facets" aria-label="자료 거르기"></nav>
     </div>
 
     <div id="status" class="status" role="status"></div>
+    <div class="list-head" aria-hidden="true"><span>자료</span><span>형식</span><span>버전</span><span>현장</span><span>갱신일</span><span></span></div>
     <ul id="list" class="cards"></ul>
   </main>
 

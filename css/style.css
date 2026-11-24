@@ -161,6 +161,78 @@ input:hover, select:hover { border-color: var(--muted); }
   .share-btn { flex: 1 1 auto; white-space: nowrap; padding: 0 12px; }
 }
 
+/* 휴대폰·좁은 창: 정보는 한 줄로, PC 전용 필터 목록·표 머리는 숨김 */
+.card .meta span + span::before { content: " · "; content: " · " / ""; }
+.facets, .list-head { display: none; }
+
+/* ── PC (960px 이상): 왼쪽 필터 + 오른쪽 표. 한 화면에 많은 자료를 훑고 바로 받도록 ── */
+@media (min-width: 960px) {
+  body:has(main.portal) .brand-inner { max-width: 1240px; padding: 0 32px; }
+  main.portal {
+    --cols: minmax(0, 1fr) 56px 88px 150px 96px 128px;
+    max-width: 1240px; padding: 28px 32px 56px;
+    display: grid; grid-template-columns: 232px minmax(0, 1fr); grid-template-rows: auto auto 1fr; column-gap: 40px; align-items: start;
+  }
+  .portal .unlock { grid-column: 1 / -1; }
+  .portal #app { grid-column: 1; grid-row: 1 / -1; position: sticky; top: 24px; }
+  .portal .status { grid-column: 2; grid-row: 1; min-height: 0; margin-bottom: 12px; }
+  .portal .status:has(button) { min-height: 44px; }
+  .portal .list-head { grid-column: 2; grid-row: 2; }
+  .portal .cards { grid-column: 2; grid-row: 3; }
+  #app[hidden] ~ .list-head { display: none; }
+
+  /* 왼쪽: 검색 + 종류·현장 목록(개수) */
+  .portal .filters { display: block; }
+  .portal .filters select { display: none; }
+  .facets { display: grid; gap: 24px; margin-top: 24px; }
+  .facet-group { display: grid; gap: 2px; }
+  .facet-title { margin: 0 0 6px; padding: 0 10px; color: var(--muted); font-size: 0.8rem; font-weight: 700; }
+  .facet {
+    justify-content: space-between; width: 100%; min-height: 36px; padding: 0 10px;
+    color: var(--text); background: transparent; border: 0; font-weight: 500; text-align: left;
+  }
+  .facet span:first-child { overflow: hidden; text-overflow: ellipsis; }
+  .facet:hover { background: var(--border); }
+  .facet[aria-pressed="true"] { color: var(--link); background: var(--tint); font-weight: 700; }
+  .facet-count { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+  .facet[aria-pressed="true"] .facet-count { color: inherit; }
+
+}
+
+/* 넓은 PC (1200px 이상): 오른쪽 목록을 표로 (그보다 좁으면 카드 그대로) */
+@media (min-width: 1200px) {
+  .list-head {
+    display: grid; grid-template-columns: var(--cols); column-gap: 16px; padding: 10px 20px;
+    color: var(--muted); font-size: 0.8rem; font-weight: 700;
+    background: var(--surface); border: 1px solid var(--border); border-bottom: 0; border-radius: 8px 8px 0 0;
+  }
+  .portal .cards { gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 0 0 8px 8px; overflow: hidden; }
+  .portal .card {
+    grid-template-columns: var(--cols); column-gap: 16px; row-gap: 0; align-items: center;
+    padding: 14px 20px; border: 0; border-top: 1px solid var(--border); border-radius: 0;
+  }
+  .portal .card:hover { background: var(--bg); }
+  .portal .card-body, .portal .card .meta { display: contents; }
+  .portal .card-title { grid-column: 1; grid-row: 1; min-width: 0; }
+  .portal .card h2 { font-size: 1rem; }
+  .portal .card .desc { grid-column: 1 / 6; grid-row: 2; margin-top: 2px; color: var(--muted); font-size: 0.9rem; }
+  .portal .card .change { grid-column: 1 / 6; grid-row: 3; margin-top: 2px; }
+  .portal .card .meta span { grid-row: 1; color: var(--muted); font-size: 0.9rem; white-space: normal; }
+  .portal .card .meta span::before { content: none; }
+  .portal .m-type { grid-column: 2; }
+  .portal .m-ver { grid-column: 3; color: var(--text) !important; font-weight: 700; }
+  .portal .m-site { grid-column: 4; }
+  .portal .m-date { grid-column: 5; }
+  .portal .download { grid-column: 6; grid-row: 1; justify-self: end; min-width: 0; min-height: 40px; padding: 0 16px; }
+  .portal .share { grid-column: 1 / -1; grid-row: 4; flex-wrap: nowrap; margin-top: 10px; padding-top: 0; border-top: 0; }
+  .portal .share-label { flex: 0 1 auto; margin-right: 4px; }
+  .portal .share-btn { min-height: 32px; padding: 0 12px; font-size: 0.875rem; }
+  .portal .history-toggle { grid-column: 1 / -1; grid-row: 5; min-height: 32px; margin-top: 6px; }
+  .portal .history { grid-column: 1 / -1; grid-row: 6; margin-top: 6px; }
+  .portal .history-download { min-height: 36px; }
+  .portal .card-note { grid-row: 7; }
+}
+
 /* QR 창 */
 .qr-dialog { width: min(360px, calc(100vw - 32px)); padding: 20px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; text-align: center; box-shadow: 0 12px 40px rgb(0 0 0 / 0.25); }
 .qr-dialog::backdrop { background: rgb(0 0 0 / 0.55); }

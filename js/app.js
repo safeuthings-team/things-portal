@@ -6,7 +6,7 @@ const SESSION_MS = 2 * 60 * 60 * 1000; // 비밀번호를 넣은 뒤 2시간이 
 const LOCK_KEY = "things-share-lock"; // 2시간이 지나 다시 묻는 이유를 새로고침 뒤에 보여 주려고 남긴다
 const FILTER_KEY = "things-share-filters"; // 이 탭의 검색·필터 (다시 열어도 그대로)
 const SITE_KEY = "things-share-site"; // 마지막으로 고른 현장 (다음 방문에도)
-const KINDS = { app: "앱", guide: "가이드", manual: "매뉴얼", other: "기타" };
+const KINDS = { app: "앱", manual: "매뉴얼", guide: "퀵 가이드", other: "기타" };
 const $ = (id) => document.getElementById(id);
 let site = null; // config.json
 let token = null; // 비밀번호로 푼 토큰
@@ -138,6 +138,28 @@ function render() {
   $("list").replaceChildren(...items.map(card));
   if (items.length) showStatus(`자료 ${items.length}건`);
   else showStatus("조건에 맞는 자료가 없습니다.", site || category || q ? resetFilters : null, "필터 초기화");
+  renderFacets(site, category, q);
+}
+
+// PC 왼쪽 필터: 종류·현장 목록(개수 포함). 누르면 드롭다운 값을 바꾼 것과 같다 (휴대폰은 드롭다운만 보임)
+function renderFacets(site, category, q) {
+  const group = (title, selectId, options, current) => {
+    const box = el("div", "facet-group");
+    box.append(el("h2", "facet-title", title));
+    for (const [value, label, count] of options) {
+      const b = el("button", "facet");
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(value === current));
+      b.append(el("span", "", label), el("span", "facet-count", String(count)));
+      b.onclick = () => { $(selectId).value = value; onFilter(); };
+      box.append(b);
+    }
+    return box;
+  };
+  const n = (s, c) => manifest.resources.filter((r) => matches(r, s, c, q)).length;
+  const kinds = [["", "모든 종류", n(site, "")], ...Object.entries(KINDS).map(([v, l]) => [v, l, n(site, v)])];
+  const sites = [["", "모든 현장", n("", category)], ...manifest.sites.map((s) => [s.id, s.name, n(s.id, category)])];
+  $("facets").replaceChildren(group("자료 종류", "category", kinds, category), ...(manifest.sites.length ? [group("현장", "site", sites, site)] : []));
 }
 
 // 목록은 바로 바꾸고, 저장은 입력이 멈춘 뒤에
@@ -155,10 +177,10 @@ function card(r) {
   head.append(el("span", "kind", KINDS[r.category] || "기타"), el("h2", "", r.title));
   body.append(head);
   if (r.description) body.append(el("p", "desc", r.description));
+  // 휴대폰은 한 줄("APK · v1.4.2 · 공통 · 날짜"), PC 는 표의 열로 나뉜다 (구분점은 CSS 가 그림)
   const meta = el("p", "meta");
-  [r.fileType, `v${r.version}`, siteLabel(r), r.updatedAt].filter(Boolean).forEach((text, i) => {
-    if (i) meta.append(" · ");
-    meta.append(el("span", "", text));
+  [["m-type", r.fileType], ["m-ver", `v${r.version}`], ["m-site", siteLabel(r)], ["m-date", r.updatedAt]].forEach(([cls, text]) => {
+    if (text) meta.append(el("span", cls, text));
   });
   body.append(meta);
 
