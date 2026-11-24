@@ -92,7 +92,7 @@ button:disabled { cursor: progress; opacity: 0.8; }
 .i-alert { --i: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 7v6M12 16.5v.5'/%3E%3C/svg%3E"); }
 
 /* ── 비밀번호 ── */
-.unlock { display: grid; gap: 8px; max-width: 420px; margin: clamp(16px, 8vh, 72px) auto 0; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+.unlock { display: grid; gap: 8px; width: 100%; max-width: 420px; margin: clamp(16px, 8vh, 72px) auto 0; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
 .unlock label { font-weight: 700; }
 .unlock .hint { margin: 0; color: var(--muted); font-size: 0.9rem; }
 .unlock-row { display: flex; gap: 8px; margin-top: 4px; }
@@ -113,8 +113,26 @@ input:hover, select:hover { border-color: var(--muted); }
 /* ── 필터·상태 ── */
 .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .filters input { grid-column: 1 / -1; }
-.status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 48px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.status:empty { min-height: 0; }
+/* 검색 칸: 돋보기는 바탕 그림 (글자색을 못 따르므로 밝은·어두운 화면 모두에서 보이는 회색) */
+#q {
+  padding-left: 40px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23808080' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='6.5'/%3E%3Cpath d='M16 16l4.5 4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: 12px center; background-size: 20px;
+}
+/* 검색어 지우기(×): 브라우저 기본 파란 단추 대신 화면 색으로 */
+#q::-webkit-search-cancel-button {
+  -webkit-appearance: none; width: 24px; height: 24px; margin: 0 -4px 0 4px; cursor: pointer; background: var(--muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M7 7l10 10M17 7L7 17'/%3E%3C/svg%3E") center / 18px no-repeat;
+}
+#q::-webkit-search-cancel-button:hover { background: var(--text); }
+/* 목록 위 한 줄: 왼쪽 건수(+필터 초기화), 오른쪽 정렬. 조건을 걸고 풀 때 목록이 위아래로 밀리지 않게 높이를 고정 */
+.list-bar { display: flex; align-items: center; gap: 12px; min-height: 52px; }
+.list-bar:has(.status:empty):has(#sort[hidden]) { min-height: 0; }
+.status { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.status .retry { min-height: 36px; padding: 0 12px; font-size: 0.9rem; }
+#sort { flex: none; width: auto; min-height: 36px; padding: 4px 8px; color: var(--muted); background: transparent; border-color: transparent; font-size: 0.9rem; cursor: pointer; }
+#sort:hover, #sort:focus-visible { color: var(--text); border-color: var(--border); }
+@media (pointer: coarse) { .status .retry, #sort { min-height: 44px; } }
 
 /* ── 자료 카드 ── */
 .cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
@@ -165,38 +183,30 @@ input:hover, select:hover { border-color: var(--muted); }
 .card .meta span + span::before { content: " · "; content: " · " / ""; }
 .facets, .list-head { display: none; }
 
-/* ── PC (960px 이상): 왼쪽 필터 + 오른쪽 표. 한 화면에 많은 자료를 훑고 바로 받도록 ── */
+/* ── PC (960px 이상): 위에 가로 필터(검색 · 현장 · 종류), 아래에 목록을 폭 전체로.
+   필터를 왼쪽에 세로로 쌓으면 현장이 종류 아래로 밀리고 목록이 좁아진다 → 한 줄에 한 묶음씩 가로로 ── */
 @media (min-width: 960px) {
   body:has(main.portal) .brand-inner { max-width: 1240px; padding: 0 32px; }
-  main.portal {
-    --cols: minmax(0, 1fr) 56px 88px 150px 96px 128px;
-    max-width: 1240px; padding: 28px 32px 56px;
-    display: grid; grid-template-columns: 232px minmax(0, 1fr); grid-template-rows: auto auto 1fr; column-gap: 40px; align-items: start;
-  }
-  .portal .unlock { grid-column: 1 / -1; }
-  .portal #app { grid-column: 1; grid-row: 1 / -1; position: sticky; top: 24px; }
-  .portal .status { grid-column: 2; grid-row: 1; min-height: 0; margin-bottom: 12px; }
-  .portal .status:has(button) { min-height: 44px; }
-  .portal .list-head { grid-column: 2; grid-row: 2; }
-  .portal .cards { grid-column: 2; grid-row: 3; }
-  #app[hidden] ~ .list-head { display: none; }
+  main.portal { --cols: minmax(0, 1fr) 56px 88px 190px 96px 128px; max-width: 1240px; padding: 28px 32px 56px; }
+  #app[hidden] ~ .list-head, #app[hidden] ~ .cards { display: none; }
 
-  /* 왼쪽: 검색 + 종류·현장 목록(개수) */
-  .portal .filters { display: block; }
+  .portal .filters { display: block; max-width: 480px; }
   .portal .filters select { display: none; }
-  .facets { display: grid; gap: 24px; margin-top: 24px; }
-  .facet-group { display: grid; gap: 2px; }
-  .facet-title { margin: 0 0 6px; padding: 0 10px; color: var(--muted); font-size: 0.8rem; font-weight: 700; }
+  /* 이름표 열 + 단추 열. 묶음이 늘어도 단추의 왼쪽 끝이 한 줄로 맞는다 */
+  .facets { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; margin-top: 16px; }
+  .facet-group { display: contents; }
+  .facet-title { margin: 0; color: var(--muted); font-size: 0.85rem; font-weight: 700; line-height: 36px; }
+  .facet-list { display: flex; flex-wrap: wrap; gap: 6px; }
   .facet {
-    justify-content: space-between; width: 100%; min-height: 36px; padding: 0 10px;
-    color: var(--text); background: transparent; border: 0; font-weight: 500; text-align: left;
+    gap: 8px; min-height: 36px; padding: 0 12px;
+    color: var(--text); background: var(--surface); border: 1px solid var(--border); font-size: 0.95rem;
   }
-  .facet span:first-child { overflow: hidden; text-overflow: ellipsis; }
-  .facet:hover { background: var(--border); }
-  .facet[aria-pressed="true"] { color: var(--link); background: var(--tint); font-weight: 700; }
-  .facet-count { color: var(--muted); font-size: 0.85rem; font-variant-numeric: tabular-nums; }
+  .facet:hover { border-color: var(--muted); }
+  .facet[aria-pressed="true"] { color: var(--link); background: var(--tint); border-color: currentColor; }
+  .facet-count { color: var(--muted); font-size: 0.8rem; font-weight: 500; font-variant-numeric: tabular-nums; }
   .facet[aria-pressed="true"] .facet-count { color: inherit; }
-
+  .facet[data-empty] { color: var(--muted); background: transparent; }
+  .portal .list-bar { margin-top: 12px; }
 }
 
 /* 넓은 PC (1200px 이상): 오른쪽 목록을 표로 (그보다 좁으면 카드 그대로) */
@@ -206,6 +216,8 @@ input:hover, select:hover { border-color: var(--muted); }
     color: var(--muted); font-size: 0.8rem; font-weight: 700;
     background: var(--surface); border: 1px solid var(--border); border-bottom: 0; border-radius: 8px 8px 0 0;
   }
+  .list-head:has(+ .cards:empty) { display: none; }   /* 결과가 없으면 표 머리만 덩그러니 남지 않게 */
+  .portal .cards:empty { display: none; }
   .portal .cards { gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 0 0 8px 8px; overflow: hidden; }
   .portal .card {
     grid-template-columns: var(--cols); column-gap: 16px; row-gap: 0; align-items: center;

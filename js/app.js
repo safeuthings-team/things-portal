@@ -73,10 +73,12 @@ async function gh(path) {
   return res;
 }
 
+// 검색 대상: 자료명·설명·태그 + 현장 이름·파일 이름·형식·버전·변경 내용. 띄어 쓴 낱말은 모두 들어 있어야 한다
+const haystack = (r) => (r.hay ??= [r.title, r.description, siteLabel(r), r.fileName, r.fileType, r.version, r.note, ...(r.tags || [])].join(" ").toLowerCase());
 const matches = (r, site, category, q) =>
   (!site || r.siteIds.length === 0 || r.siteIds.includes(site)) &&
   (!category || r.category === category) &&
-  (!q || [r.title, r.description, ...(r.tags || [])].join(" ").toLowerCase().includes(q));
+  (!q || q.split(/\s+/).every((word) => haystack(r).includes(word)));
 
 function el(tag, className, text) {
   const e = document.createElement(tag);
@@ -101,17 +103,25 @@ function icon(name) {
   return i;
 }
 
+// 주소에도 남긴다 (?site=…&category=…&q=…): 그 주소를 보내면 받은 사람도 같은 조건으로 열린다
 function saveFilters() {
-  const f = { q: $("q").value, site: $("site").value, category: $("category").value };
+  const f = { q: $("q").value.trim(), site: $("site").value, category: $("category").value, sort: $("sort").value };
   try { sessionStorage.setItem(FILTER_KEY, JSON.stringify(f)); localStorage.setItem(SITE_KEY, f.site); } catch {}
+  if (f.sort === "new") delete f.sort;
+  const qs = new URLSearchParams(Object.entries(f).filter(([, v]) => v)).toString();
+  history.replaceState(null, "", qs ? `?${qs}` : location.pathname);
 }
 
+// 순서: 주소에 조건이 있으면 그것, 없으면 이 탭에서 보던 조건, 그것도 없으면 지난번에 고른 현장
 function restoreFilters() {
   let f = {};
+  const url = Object.fromEntries(new URLSearchParams(location.search));
   try { f = JSON.parse(sessionStorage.getItem(FILTER_KEY)) || { site: localStorage.getItem(SITE_KEY) || "" }; } catch {}
+  if (["q", "site", "category", "sort"].some((k) => k in url)) f = url;
   const pick = (id, v) => { if (v && [...$(id).options].some((o) => o.value === v)) $(id).value = v; };
   pick("site", f.site);
   pick("category", f.category);
+  pick("sort", f.sort);
   if (f.q) $("q").value = f.q;
 }
 
@@ -135,31 +145,43 @@ function render() {
   const q = $("q").value.trim().toLowerCase();
   const items = manifest.resources.filter((r) => matches(r, site, category, q));
 
+  // 날짜가 같은 자료는 관리자가 넣은 순서 그대로 (sort 는 순서를 유지한다)
+  if ($("sort").value === "name") items.sort((a, b) => a.title.localeCompare(b.title, "ko"));
+  else items.sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+
   $("list").replaceChildren(...items.map(card));
-  if (items.length) showStatus(`자료 ${items.length}건`);
-  else showStatus("조건에 맞는 자료가 없습니다.", site || category || q ? resetFilters : null, "필터 초기화");
+  // 조건을 걸었으면 몇 건 중 몇 건인지 알려 주고, 언제든 한 번에 풀 수 있게 한다
+  const filtered = site || category || q;
+  if (!items.length) showStatus("조건에 맞는 자료가 없습니다.", filtered ? resetFilters : null, "필터 초기화");
+  else if (filtered) showStatus(`전체 ${manifest.resources.length}건 중 ${items.length}건`, resetFilters, "필터 초기화");
+  else showStatus(`자료 ${items.length}건`);
   renderFacets(site, category, q);
 }
 
-// PC 왼쪽 필터: 종류·현장 목록(개수 포함). 누르면 드롭다운 값을 바꾼 것과 같다 (휴대폰은 드롭다운만 보임)
+// PC 필터: 현장·종류를 가로로 늘어놓은 단추(개수 포함). 누르면 드롭다운 값을 바꾼 것과 같다 (휴대폰은 드롭다운만 보임)
 function renderFacets(site, category, q) {
   const group = (title, selectId, options, current) => {
     const box = el("div", "facet-group");
-    box.append(el("h2", "facet-title", title));
+    const list = el("div", "facet-list");
+    box.setAttribute("role", "group");
+    box.setAttribute("aria-label", title);
+    box.append(el("h2", "facet-title", title), list);
     for (const [value, label, count] of options) {
       const b = el("button", "facet");
       b.type = "button";
       b.setAttribute("aria-pressed", String(value === current));
+      if (!count && value !== current) b.dataset.empty = "";
       b.append(el("span", "", label), el("span", "facet-count", String(count)));
       b.onclick = () => { $(selectId).value = value; onFilter(); };
-      box.append(b);
+      list.append(b);
     }
     return box;
   };
   const n = (s, c) => manifest.resources.filter((r) => matches(r, s, c, q)).length;
   const kinds = [["", "모든 종류", n(site, "")], ...Object.entries(KINDS).map(([v, l]) => [v, l, n(site, v)])];
   const sites = [["", "모든 현장", n("", category)], ...manifest.sites.map((s) => [s.id, s.name, n(s.id, category)])];
-  $("facets").replaceChildren(group("자료 종류", "category", kinds, category), ...(manifest.sites.length ? [group("현장", "site", sites, site)] : []));
+  // 현장이 먼저: 자료 대부분이 한 현장 것이라 사용자는 자기 현장부터 고른다
+  $("facets").replaceChildren(...(manifest.sites.length ? [group("현장", "site", sites, site)] : []), group("종류", "category", kinds, category));
 }
 
 // 목록은 바로 바꾸고, 저장은 입력이 멈춘 뒤에
@@ -314,6 +336,7 @@ async function load() {
   }
   const siteSelect = $("site");
   siteSelect.replaceChildren(new Option("모든 현장", ""), ...manifest.sites.map((s) => new Option(s.name, s.id)));
+  $("sort").hidden = false;
   restoreFilters();
   render();
 }
@@ -373,7 +396,12 @@ async function start() {
   if (matchMedia("(pointer: fine)").matches) $("pw").focus(); // 휴대폰에서는 키보드가 바로 올라오지 않게
 }
 
-["q", "site", "category"].forEach((id) => $(id).addEventListener("input", onFilter));
+["q", "site", "category", "sort"].forEach((id) => $(id).addEventListener("input", onFilter));
+// 키보드: / 로 검색 칸, Esc 로 검색어 지우기
+document.addEventListener("keydown", (e) => {
+  if (e.key === "/" && !$("app").hidden && !document.querySelector("dialog[open]") && !/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) { e.preventDefault(); $("q").focus(); $("q").select(); }
+  else if (e.key === "Escape" && e.target === $("q") && $("q").value) { e.preventDefault(); $("q").value = ""; onFilter(); }
+});
 $("unlock").addEventListener("submit", unlock);
 $("qr-close").addEventListener("click", () => $("qr-dialog").close());
 $("qr-dialog").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); }); // 바깥 누르면 닫기

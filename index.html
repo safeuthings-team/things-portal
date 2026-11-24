@@ -34,7 +34,7 @@
 
     <div id="app" hidden>
       <div class="filters">
-        <input id="q" type="search" placeholder="자료명·설명·태그 검색" aria-label="검색" autocomplete="off">
+        <input id="q" type="search" placeholder="자료명·현장·태그 검색" aria-label="자료 검색 (자료명·현장·태그·파일 이름)" autocomplete="off">
         <select id="site" aria-label="현장">
           <option value="">모든 현장</option>
         </select>
@@ -49,7 +49,13 @@
       <nav id="facets" class="facets" aria-label="자료 거르기"></nav>
     </div>
 
-    <div id="status" class="status" role="status"></div>
+    <div class="list-bar">
+      <div id="status" class="status" role="status"></div>
+      <select id="sort" aria-label="정렬" hidden>
+        <option value="new">최신순</option>
+        <option value="name">이름순</option>
+      </select>
+    </div>
     <div class="list-head" aria-hidden="true"><span>자료</span><span>형식</span><span>버전</span><span>현장</span><span>갱신일</span><span></span></div>
     <ul id="list" class="cards"></ul>
   </main>
