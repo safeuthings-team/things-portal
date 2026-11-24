@@ -66,8 +66,9 @@ async function gh(path) {
     throw new Error("네트워크에 연결할 수 없습니다. 인터넷 연결을 확인하세요.");
   }
   if (res.status === 401) {
+    // 토큰을 지웠으니 같은 요청을 다시 해도 소용없다 → 부르는 쪽은 '다시 시도' 대신 비밀번호 화면으로 보낸다 (relock)
     forgetToken();
-    throw new Error("자료실 인증이 만료되었습니다. 관리자에게 문의하세요.");
+    throw Object.assign(new Error("자료실 인증이 만료되었습니다. 비밀번호를 다시 입력해도 같으면 관리자에게 문의하세요."), { relock: true });
   }
   if (res.status === 403 || res.status === 429) throw new Error("요청이 많습니다. 잠시 후 다시 시도하세요.");
   if (!res.ok) throw new Error(`자료를 가져오지 못했습니다. 잠시 후 다시 시도하고, 계속되면 자료실 관리자에게 알려 주세요. (오류 ${res.status})`);
@@ -145,7 +146,10 @@ function render() {
   const items = manifest.resources.filter((r) => matches(r, site, category, q));
 
   // 날짜가 같은 자료는 관리자가 넣은 순서 그대로 (sort 는 순서를 유지한다)
-  if ($("sort").value === "name") items.sort((a, b) => a.title.localeCompare(b.title, "ko"));
+  const sort = $("sort").value;
+  if (sort === "name") items.sort((a, b) => a.title.localeCompare(b.title, "ko"));
+  // 현장순: 공통 자료 먼저, 그다음 현장 이름순. 같은 제목의 자료가 현장별로 모인다
+  else if (sort === "site") items.sort((a, b) => (a.siteIds.length ? 1 : 0) - (b.siteIds.length ? 1 : 0) || siteLabel(a).localeCompare(siteLabel(b), "ko") || a.title.localeCompare(b.title, "ko"));
   else items.sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
 
   $("list").replaceChildren(...items.map(card));
@@ -170,6 +174,7 @@ function renderFacets(site, category, q) {
       b.type = "button";
       b.dataset.key = `${selectId}:${value}`;
       b.setAttribute("aria-pressed", String(value === current));
+      b.setAttribute("aria-label", `${label} ${count}건`);   // 글자와 개수가 "모든 현장19" 로 붙어 읽히지 않게
       if (!value) b.dataset.all = "";   // '모든 …' 은 걸러 낸 것이 아니므로 강조색을 쓰지 않는다
       if (!count && value !== current) b.dataset.empty = "";
       b.append(el("span", "", label), el("span", "facet-count", String(count)));
@@ -318,15 +323,19 @@ function showQr(title, url) {
   $("qr-save").href = src;
   $("qr-save").download = `${title} QR.gif`;
   $("qr-dialog").showModal();
+  $("qr-close").focus();
 }
 
 async function download(r, btn, note) {
   const original = [...btn.childNodes];
+  const name0 = btn.getAttribute("aria-label");
+  // 단추 글자와 함께 이름(aria-label)도 바꿔야 화면 낭독기가 진행 상황을 읽는다
+  const progress = (text) => { btn.textContent = text; if (name0) btn.setAttribute("aria-label", `${name0} ${text}`); };
   btn.disabled = true;
   btn.setAttribute("aria-busy", "true");
-  btn.textContent = "받는 중…";
+  progress("받는 중…");
   note.replaceChildren();
-  note.classList.remove("error");
+  note.classList.remove("error", "done");
   try {
     const res = await gh(r.path);
     const total = Number(res.headers.get("Content-Length")) || 0;
@@ -338,9 +347,9 @@ async function download(r, btn, note) {
       if (done) break;
       chunks.push(value);
       received += value.length;
-      btn.textContent = total
+      progress(total
         ? `받는 중 ${Math.round((received / total) * 100)}%`
-        : `받는 중 ${(received / 1048576).toFixed(1)}MB`;
+        : `받는 중 ${(received / 1048576).toFixed(1)}MB`);
     }
     // 받는 데 시간이 걸리면 브라우저가 자동 다운로드로 보고 막을 수 있다
     // (Chrome '여러 파일 다운로드' 차단 등). 그래서 직접 눌러 저장할 링크도 함께 보여 준다.
@@ -348,18 +357,20 @@ async function download(r, btn, note) {
     const a = el("a", "save-link", "저장되지 않았다면 다시 저장");
     a.href = URL.createObjectURL(new Blob(chunks));
     a.download = name;
-    note.replaceChildren(el("span", "", `받았습니다: ${name}`), a);
+    note.replaceChildren(icon("check"), el("span", "", `받았습니다: ${name}`), a);
+    note.classList.add("done");
     a.click();
-    setTimeout(() => { URL.revokeObjectURL(a.href); note.replaceChildren(); }, 10 * 60000);
+    setTimeout(() => { URL.revokeObjectURL(a.href); note.replaceChildren(); note.classList.remove("done"); }, 10 * 60000);
   } catch (e) {
-    // 무엇이 안 됐는지와 함께 바로 다시 해 볼 단추를 그 자리에 둔다
-    const retry = el("button", "note-retry", "다시 시도");
-    retry.onclick = () => download(r, btn, note);
+    // 무엇이 안 됐는지와 함께 바로 해 볼 단추를 그 자리에 둔다. 인증이 만료됐으면 다시 받아도 소용없으니 비밀번호 화면으로
+    const retry = el("button", "note-retry", e.relock ? "비밀번호 다시 입력" : "다시 시도");
+    retry.onclick = e.relock ? () => location.reload() : () => download(r, btn, note);
     note.replaceChildren(icon("alert"), el("span", "", e.message), retry);
     note.classList.add("error");
   } finally {
     btn.disabled = false;
     btn.removeAttribute("aria-busy");
+    if (name0) btn.setAttribute("aria-label", name0);
     btn.replaceChildren(...original);
   }
 }
@@ -369,7 +380,8 @@ async function load() {
   try {
     manifest = await (await gh("manifest.json")).json();
   } catch (e) {
-    showStatus(e.message, load);
+    if (e.relock) showStatus(e.message, () => location.reload(), "비밀번호 다시 입력");
+    else showStatus(e.message, load);
     return;
   }
   const siteSelect = $("site");
