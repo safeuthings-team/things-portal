@@ -128,11 +128,16 @@ input:hover, select:hover { border-color: var(--muted); }
 /* 목록 위 한 줄: 왼쪽 건수(+필터 초기화), 오른쪽 정렬. 조건을 걸고 풀 때 목록이 위아래로 밀리지 않게 높이를 고정 */
 .list-bar { display: flex; align-items: center; gap: 12px; min-height: 52px; }
 .list-bar:has(.status:empty):has(#sort[hidden]) { min-height: 0; }
-.status { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.status .retry { min-height: 36px; padding: 0 12px; font-size: 0.9rem; }
-#sort { flex: none; width: auto; min-height: 36px; padding: 4px 8px; color: var(--muted); background: transparent; border-color: transparent; font-size: 0.9rem; cursor: pointer; }
+.status { color: var(--muted); font-variant-numeric: tabular-nums; }
+#status-action:empty { display: none; }
+#status-action .retry { min-height: 36px; padding: 0 12px; font-size: 0.9rem; }
+#sort { flex: none; width: auto; margin-left: auto; min-height: 36px; padding: 4px 8px; color: var(--muted); background: transparent; border-color: transparent; font-size: 0.9rem; cursor: pointer; }
 #sort:hover, #sort:focus-visible { color: var(--text); border-color: var(--border); }
-@media (pointer: coarse) { .status .retry, #sort { min-height: 44px; } }
+@media (pointer: coarse) { #status-action .retry, #sort { min-height: 44px; } }
+/* 키보드로 필터 단추들을 건너뛰고 목록으로: Tab 으로 닿았을 때만 보인다 */
+.skip { position: absolute; left: -9999px; }
+.skip:focus { position: static; display: inline-block; margin-bottom: 12px; padding: 8px 12px; color: var(--link); background: var(--surface); border-radius: 4px; font-weight: 600; }
+#list:focus { outline: none; }
 
 /* ── 자료 카드 ── */
 .cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
@@ -141,7 +146,10 @@ input:hover, select:hover { border-color: var(--muted); }
   padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
 }
 .card-title { display: flex; align-items: center; gap: 8px; }
+.title-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-width: 0; }
 .card h2 { margin: 0; font-size: 1.1rem; line-height: 1.35; letter-spacing: -0.01em; }
+/* 공개 링크가 있는 자료 표시 (설명·단추는 [공유]를 눌렀을 때만) */
+.pub { flex: none; padding: 0 6px; color: var(--muted); border: 1px solid var(--border); border-radius: 3px; font-size: 0.75rem; font-weight: 600; line-height: 1.6; cursor: help; }
 /* 종류 표시: THINGS 로고의 모서리 깎은 모양 */
 .kind {
   flex: none; padding: 1px 8px; font-size: 0.75rem; font-weight: 700; line-height: 1.6;
@@ -150,13 +158,22 @@ input:hover, select:hover { border-color: var(--muted); }
 }
 .card .desc { margin: 4px 0 0; }
 .card .meta { margin: 6px 0 0; color: var(--muted); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
-.card .meta span { white-space: nowrap; }
+.card .meta .m-when span { white-space: nowrap; }
+.card .meta .m-site { color: var(--text); font-weight: 500; }   /* 제목이 같은 자료를 가르는 정보 */
 .card .change { margin: 6px 0 0; font-size: 0.9rem; }
-.card-note { grid-column: 1 / -1; margin: 4px 0 0; color: var(--muted); font-size: 0.9rem; }
+.card-note { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 6px 0 0; color: var(--muted); font-size: 0.9rem; }
 .card-note:empty { display: none; }
-.card-note.error { display: flex; gap: 6px; align-items: flex-start; padding: 8px 10px; color: var(--danger); background: var(--danger-bg); border-radius: 4px; font-weight: 600; }
+.card-note.error { flex-wrap: nowrap; gap: 8px; align-items: flex-start; padding: 8px 10px; color: var(--danger); background: var(--danger-bg); border-radius: 4px; font-weight: 600; }
+.card-note.error span:not(.icon) { flex: 1; }
+.note-retry { min-height: 32px; padding: 0 12px; color: var(--text); background: var(--surface); border: 1px solid var(--border); font-size: 0.875rem; }
+.note-retry:hover { border-color: var(--muted); }
 .save-link { color: var(--link); font-weight: 600; text-underline-offset: 3px; }
-.download { min-width: 128px; }
+/* 받는 동안 글자가 "받는 중 100%" 로 바뀌어도 단추 폭이 변하지 않게 */
+.download { min-width: 140px; }
+.share-toggle { grid-column: 1 / -1; justify-self: start; gap: 4px; min-height: 36px; margin-top: 4px; padding: 0 10px 0 12px; color: var(--text); background: var(--surface); border: 1px solid var(--border); font-size: 0.9rem; }
+.share-toggle:hover { border-color: var(--muted); }
+.share-toggle[aria-expanded="true"] .i-chev { transform: rotate(180deg); }
+@media (pointer: coarse) { .share-toggle, .note-retry { min-height: 44px; } }
 
 .history-toggle { grid-column: 1 / -1; justify-self: start; gap: 4px; margin-top: 4px; padding: 0 4px; color: var(--link); background: transparent; border: 0; }
 .history-toggle[aria-expanded="true"] .i-chev { transform: rotate(180deg); }
@@ -169,7 +186,7 @@ input:hover, select:hover { border-color: var(--muted); }
 .history-download { min-width: 96px; padding: 0 14px; }
 
 /* 공개 링크 (자료실 카드) */
-.share { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.share { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; padding-top: 12px; border-top: 1px dashed var(--border); }
 .share-label { flex: 1 1 100%; color: var(--muted); font-size: 0.9rem; }
 .share-label b { color: var(--link); }
 
@@ -187,7 +204,9 @@ input:hover, select:hover { border-color: var(--muted); }
    필터를 왼쪽에 세로로 쌓으면 현장이 종류 아래로 밀리고 목록이 좁아진다 → 한 줄에 한 묶음씩 가로로 ── */
 @media (min-width: 960px) {
   body:has(main.portal) .brand-inner { max-width: 1240px; padding: 0 32px; }
-  main.portal { --cols: minmax(0, 1fr) 56px 88px 190px 96px 128px; max-width: 1240px; padding: 28px 32px 56px; }
+  /* 표의 칸: 종류 | 자료 | 현장 | 형식·버전·날짜 | 공유 | 다운로드.
+     종류를 고정 폭 칸으로 빼서 제목의 왼쪽 끝을 맞추고, 현장을 제목 바로 옆에 둔다 */
+  main.portal { --cols: 76px minmax(0, 4fr) minmax(0, 3fr) 196px 76px 128px; max-width: 1240px; padding: 28px 32px 56px; }
   #app[hidden] ~ .list-head, #app[hidden] ~ .cards { display: none; }
 
   .portal .filters { display: block; max-width: 480px; }
@@ -203,46 +222,56 @@ input:hover, select:hover { border-color: var(--muted); }
   }
   .facet:hover { border-color: var(--muted); }
   .facet[aria-pressed="true"] { color: var(--link); background: var(--tint); border-color: currentColor; }
+  /* '모든 …' 이 골라져 있는 것은 걸러 낸 것이 아니다: 주황은 실제로 건 조건에만 쓴다 */
+  .facet[data-all][aria-pressed="true"] { color: var(--text); background: var(--surface); border-color: var(--muted); }
   .facet-count { color: var(--muted); font-size: 0.8rem; font-weight: 500; font-variant-numeric: tabular-nums; }
-  .facet[aria-pressed="true"] .facet-count { color: inherit; }
+  .facet[aria-pressed="true"]:not([data-all]) .facet-count { color: inherit; }
   .facet[data-empty] { color: var(--muted); background: transparent; }
   .portal .list-bar { margin-top: 12px; }
+  /* 현장이 많을 때: 현장은 검색 칸 옆 드롭다운으로 (단추 여러 줄이 목록을 밀어내지 않게) */
+  .portal .many-sites .filters { display: grid; grid-template-columns: minmax(0, 480px) 240px; max-width: none; }
+  .portal .many-sites .filters #site { display: block; grid-column: auto; }
+  .portal .many-sites .filters input { grid-column: auto; }
 }
 
 /* 넓은 PC (1200px 이상): 오른쪽 목록을 표로 (그보다 좁으면 카드 그대로) */
 @media (min-width: 1200px) {
+  /* 표 머리는 스크롤해도 위에 붙어 있다 (아래 줄들의 칸 이름을 잃지 않게) */
   .list-head {
+    position: sticky; top: 0; z-index: 1;
     display: grid; grid-template-columns: var(--cols); column-gap: 16px; padding: 10px 20px;
     color: var(--muted); font-size: 0.8rem; font-weight: 700;
-    background: var(--surface); border: 1px solid var(--border); border-bottom: 0; border-radius: 8px 8px 0 0;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px 8px 0 0;
   }
   .list-head:has(+ .cards:empty) { display: none; }   /* 결과가 없으면 표 머리만 덩그러니 남지 않게 */
   .portal .cards:empty { display: none; }
-  .portal .cards { gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 0 0 8px 8px; overflow: hidden; }
+  .portal .cards { gap: 0; background: var(--surface); border: 1px solid var(--border); border-top: 0; border-radius: 0 0 8px 8px; overflow: hidden; }
   .portal .card {
     grid-template-columns: var(--cols); column-gap: 16px; row-gap: 0; align-items: center;
     padding: 14px 20px; border: 0; border-top: 1px solid var(--border); border-radius: 0;
   }
-  .portal .card:hover { background: var(--bg); }
-  .portal .card-body, .portal .card .meta { display: contents; }
-  .portal .card-title { grid-column: 1; grid-row: 1; min-width: 0; }
+  .portal .card:first-child { border-top: 0; }
+  .portal .card-body, .portal .card .meta, .portal .card-title { display: contents; }
+  .portal .kind { grid-column: 1; grid-row: 1; justify-self: start; }
+  .portal .title-wrap { grid-column: 2; grid-row: 1; }
   .portal .card h2 { font-size: 1rem; }
-  .portal .card .desc { grid-column: 1 / 6; grid-row: 2; margin-top: 2px; color: var(--muted); font-size: 0.9rem; }
-  .portal .card .change { grid-column: 1 / 6; grid-row: 3; margin-top: 2px; }
-  .portal .card .meta span { grid-row: 1; color: var(--muted); font-size: 0.9rem; white-space: normal; }
+  .portal .card .meta > span { grid-row: 1; font-size: 0.9rem; }
   .portal .card .meta span::before { content: none; }
-  .portal .m-type { grid-column: 2; }
-  .portal .m-ver { grid-column: 3; color: var(--text) !important; font-weight: 700; }
-  .portal .m-site { grid-column: 4; }
-  .portal .m-date { grid-column: 5; }
-  .portal .download { grid-column: 6; grid-row: 1; justify-self: end; min-width: 0; min-height: 40px; padding: 0 16px; }
-  .portal .share { grid-column: 1 / -1; grid-row: 4; flex-wrap: nowrap; margin-top: 10px; padding-top: 0; border-top: 0; }
+  .portal .card .meta .m-when span + span::before { content: " · "; content: " · " / ""; }
+  .portal .m-site { grid-column: 3; }
+  .portal .m-when { grid-column: 4; color: var(--muted); font-variant-numeric: tabular-nums; }
+  /* 설명·변경 내용·펼친 내용은 제목 아래에 맞춘다 */
+  .portal .card .desc { grid-column: 2 / 5; grid-row: 2; margin-top: 2px; color: var(--muted); font-size: 0.9rem; }
+  .portal .card .change { grid-column: 2 / 5; grid-row: 3; margin-top: 2px; }
+  .portal .share-toggle { grid-column: 5; grid-row: 1; justify-self: end; margin-top: 0; }
+  .portal .download { grid-column: 6; grid-row: 1; width: 128px; min-width: 0; min-height: 40px; padding: 0 8px; }
+  .portal .share { grid-column: 2 / -1; grid-row: 4; flex-wrap: nowrap; margin-top: 10px; padding-top: 0; border-top: 0; }
   .portal .share-label { flex: 0 1 auto; margin-right: 4px; }
   .portal .share-btn { min-height: 32px; padding: 0 12px; font-size: 0.875rem; }
-  .portal .history-toggle { grid-column: 1 / -1; grid-row: 5; min-height: 32px; margin-top: 6px; }
-  .portal .history { grid-column: 1 / -1; grid-row: 6; margin-top: 6px; }
+  .portal .history-toggle { grid-column: 2 / -1; grid-row: 5; min-height: 32px; margin-top: 6px; padding: 0; }
+  .portal .history { grid-column: 2 / -1; grid-row: 6; margin-top: 6px; }
   .portal .history-download { min-height: 36px; }
-  .portal .card-note { grid-row: 7; }
+  .portal .card-note { grid-column: 2 / -1; grid-row: 7; }
 }
 
 /* QR 창 */
